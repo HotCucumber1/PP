@@ -20,5 +20,6 @@ FetchContent_MakeAvailable(cxxopts)
 include_directories(${cxxopts_SOURCE_DIR})
 
 add_subdirectory(lw1/MakeArchive)
+add_subdirectory(lw1/ExtractArchive)
 
 add_subdirectory(lw2/Life)

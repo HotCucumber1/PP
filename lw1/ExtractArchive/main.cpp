@@ -1,15 +1,14 @@
-#include "Packer.h"
+#include "Unpacker.h"
 
 #include <chrono>
 #include <iostream>
-
-constexpr double MS_IN_S = 1000.0;
+#include <string>
 
 struct Args
 {
 	int processes = 1;
 	std::string outFolder;
-	std::vector<std::string> inFiles;
+	std::string archiveName;
 };
 
 Args ParsArgs(int argc, char* argv[]);
@@ -21,14 +20,14 @@ int main(const int argc, char* argv[])
 		const auto args = ParsArgs(argc, argv);
 		const auto start = std::chrono::high_resolution_clock::now();
 
-		const auto archTime = Packer(args.processes)
-								  .Pack(args.outFolder, args.inFiles);
+		const auto archTime = Unpacker(args.processes)
+								  .Unpack(args.archiveName, args.outFolder);
 
 		const auto end = std::chrono::high_resolution_clock::now();
 		const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-		std::cout << "Command executed in: " << duration.count() / MS_IN_S << " seconds" << std::endl;
-		std::cout << "Sequential part executed in: " << archTime / MS_IN_S << " seconds" << std::endl;
+		std::cout << "Command executed in: " << duration.count() << " milliseconds" << std::endl;
+		std::cout << "Sequential part executed in: " << archTime << " milliseconds" << std::endl;
 
 		return 0;
 	}
@@ -53,12 +52,9 @@ Args ParsArgs(const int argc, char* argv[])
 	if (mode == "-S")
 	{
 		args.processes = 1;
-		args.outFolder = argv[2];
 
-		for (int i = 3; i < argc; i++)
-		{
-			args.inFiles.emplace_back(argv[i]);
-		}
+		args.archiveName = argv[2];
+		args.outFolder = argv[3];
 	}
 	else if (mode == "-P")
 	{
@@ -67,32 +63,18 @@ Args ParsArgs(const int argc, char* argv[])
 			throw std::runtime_error("Not enough arguments for parallel mode");
 		}
 
-		try
+		args.processes = std::stoi(argv[2]);
+		if (args.processes < 1)
 		{
-			args.processes = std::stoi(argv[2]);
-			if (args.processes < 1)
-			{
-				throw std::runtime_error("Number of processes must be at least 1");
-			}
-		}
-		catch (const std::exception&)
-		{
-			throw std::runtime_error("Invalid number of processes");
+			throw std::runtime_error("Number of processes must be at least 1");
 		}
 
-		args.outFolder = argv[3];
-		for (int i = minArgsCount; i < argc; i++)
-		{
-			args.inFiles.emplace_back(argv[i]);
-		}
+		args.archiveName = argv[3];
+		args.outFolder = argv[4];
 	}
 	else
 	{
 		throw std::runtime_error("Invalid mode. Use -S or -P");
-	}
-	if (args.inFiles.empty())
-	{
-		throw std::runtime_error("No input files specified");
 	}
 
 	return args;
