@@ -25,7 +25,7 @@ public:
 	Field GetField() const;
 
 private:
-	size_t GetCellAliveNeighboursCount(int i, int j, const Field& field) const;
+	int GetCellAliveNeighboursCount(int i, int j, const Field& field) const;
 
 private:
 	int m_width;

@@ -99,9 +99,9 @@ bool LifeGame::IsEnd() const
 	return true;
 }
 
-size_t LifeGame::GetCellAliveNeighboursCount(const int i, const int j, const Field& field) const
+int LifeGame::GetCellAliveNeighboursCount(const int i, const int j, const Field& field) const
 {
-	size_t count = 0;
+	int count = 0;
 
 	for (int di = -1; di <= 1; di++)
 	{
