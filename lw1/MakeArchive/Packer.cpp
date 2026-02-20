@@ -109,7 +109,7 @@ void CompressFiles(const std::vector<std::string>& files)
 	catch (const std::exception&)
 	{
 		packer.Cleanup();
-		exit(1);
+		_exit(1);
 	}
 }
 

@@ -21,8 +21,8 @@ int main(const int argc, char* argv[])
 		const auto args = ParsArgs(argc, argv);
 		const auto start = std::chrono::high_resolution_clock::now();
 
-		auto archTime = Packer(args.processes)
-			.Pack(args.outFile, args.inFiles);
+		const auto archTime = Packer(args.processes)
+								  .Pack(args.outFile, args.inFiles);
 
 		const auto end = std::chrono::high_resolution_clock::now();
 		const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -41,9 +41,10 @@ int main(const int argc, char* argv[])
 
 Args ParsArgs(const int argc, char* argv[])
 {
+	constexpr int minArgsCount = 4;
 	Args args;
 
-	if (argc < 4)
+	if (argc < minArgsCount)
 	{
 		throw std::runtime_error("Not enough arguments");
 	}
@@ -61,7 +62,7 @@ Args ParsArgs(const int argc, char* argv[])
 	}
 	else if (mode == "-P")
 	{
-		if (argc < 5)
+		if (argc < minArgsCount + 1)
 		{
 			throw std::runtime_error("Not enough arguments for parallel mode");
 		}
@@ -80,7 +81,7 @@ Args ParsArgs(const int argc, char* argv[])
 		}
 
 		args.outFile = argv[3];
-		for (int i = 4; i < argc; i++)
+		for (int i = minArgsCount; i < argc; i++)
 		{
 			args.inFiles.emplace_back(argv[i]);
 		}

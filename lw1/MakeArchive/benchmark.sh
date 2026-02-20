@@ -9,7 +9,7 @@ MAX_PROCESSES=16
 mkdir -p test_results
 cd test_results
 
-echo "Mode,Processes,Time(s)"
+echo "Processes,Time(s)"
 
 for i in {1..16}
 do
@@ -17,7 +17,7 @@ do
 
     TIME=$( { /usr/bin/time -f "%e" "$EXECUTABLE" -P $i "$OUTPUT_ARCHIVE" $INPUT_FILES; } 2>&1 )
 
-    echo "Parallel,$i,$TIME"
+    echo "$i,$TIME"
 
     if [ ! -f "$OUTPUT_ARCHIVE" ]; then
         echo "WARNING: Archive not created for $i processes" >&2
