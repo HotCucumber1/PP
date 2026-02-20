@@ -20,6 +20,8 @@ public:
 
 	void GenerateNextStep(int threads = 1);
 
+	bool IsEnd() const;
+
 	Field GetField() const;
 
 private:
@@ -30,4 +32,5 @@ private:
 	int m_height;
 	Field m_field;
 	std::ostream& m_logOut;
+	bool m_hasChanged = true;
 };

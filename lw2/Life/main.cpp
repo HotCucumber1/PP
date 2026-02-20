@@ -2,6 +2,7 @@
 
 #include <complex>
 #include <cstring>
+#include <thread>
 
 enum class Mode
 {
@@ -26,6 +27,7 @@ void PrintGame(const LifeGame& game, const std::string& outFile);
 
 void Generate(const LifeGameArgs& args);
 void Step(const LifeGameArgs& args);
+void Visualize(const LifeGameArgs& args);
 
 int main(const int argc, char* argv[])
 {
@@ -40,6 +42,9 @@ int main(const int argc, char* argv[])
 			break;
 		case Mode::StepMode:
 			Step(args);
+			break;
+		case Mode::VisualizeMode:
+			Visualize(args);
 			break;
 		default:
 			break;
@@ -67,6 +72,22 @@ void Step(const LifeGameArgs& args)
 	game.GenerateNextStep(args.threads);
 
 	PrintGame(game, args.outFile);
+}
+
+void Visualize(const LifeGameArgs& args)
+{
+	const auto field = GetFieldFromFile(args.inFile);
+	LifeGame game(field);
+
+	while (!game.IsEnd())
+	{
+		constexpr int sleepTime = 200;
+
+		system("clear");
+		game.GenerateNextStep(args.threads);
+		PrintField(game.GetField(), '#', std::cout);
+		std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+	}
 }
 
 void PrintGame(const LifeGame& game, const std::string& outFile)
@@ -116,7 +137,15 @@ LifeGameArgs ParseArgs(const int argc, char* argv[])
 	}
 	if (strcmp(argv[1], "visualize") == 0)
 	{
-		throw std::runtime_error("You need implement visualize method");
+		return {
+			"",
+			argv[2],
+			0,
+			0,
+			std::stoi(argv[3]),
+			0,
+			Mode::VisualizeMode,
+		};
 	}
 	throw std::runtime_error("Wrong command");
 }

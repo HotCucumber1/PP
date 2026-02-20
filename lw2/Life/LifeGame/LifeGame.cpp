@@ -45,6 +45,7 @@ void LifeGame::Generate(const double probability)
 
 void LifeGame::GenerateNextStep(const int threads)
 {
+	m_hasChanged = false;
 	const Field srcField = m_field;
 
 	boost::asio::thread_pool threadPool(threads);
@@ -61,11 +62,13 @@ void LifeGame::GenerateNextStep(const int threads)
 					if (neighboursAlive != 2 && neighboursAlive != 3)
 					{
 						m_field[i][j] = false;
+						m_hasChanged = true;
 					}
 				}
 				else if (neighboursAlive == 3)
 				{
 					m_field[i][j] = true;
+					m_hasChanged = true;
 				}
 			}
 		});
@@ -75,6 +78,25 @@ void LifeGame::GenerateNextStep(const int threads)
 	const auto end = std::chrono::high_resolution_clock::now();
 	const auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	m_logOut << "Generation time: " << duration.count() << "mcs" << std::endl;
+}
+
+bool LifeGame::IsEnd() const
+{
+	if (!m_hasChanged)
+	{
+		return true;
+	}
+	for (const auto& row : m_field)
+	{
+		for (const auto& isAlive : row)
+		{
+			if (isAlive)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 size_t LifeGame::GetCellAliveNeighboursCount(const int i, const int j, const Field& field) const
