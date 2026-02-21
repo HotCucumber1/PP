@@ -46,17 +46,17 @@ unsigned long Unpacker::Unpack(
 
 			if (startIdx >= gzFiles.size())
 			{
-				exit(0);
+				_exit(0);
 			}
 			for (size_t j = startIdx; j < endIdx; j++)
 			{
 				const auto res = UnzipFile(gzFiles[j]);
 				if (res != 0)
 				{
-					exit(1);
+					_exit(1);
 				}
 			}
-			exit(0);
+			_exit(0);
 		}
 		if (pid > 0)
 		{
@@ -122,7 +122,7 @@ void ExtractArchive(
 	}
 	if (!std::filesystem::exists(outDir))
 	{
-		throw std::runtime_error("Dir" + outDir + " does not exist");
+		std::filesystem::create_directories(outDir);
 	}
 
 	const std::string cmd = "tar -xf " + inArchive + " -C " + outDir;
