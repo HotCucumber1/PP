@@ -47,7 +47,8 @@ void LifeGame::GenerateNextStep(const int threads)
 {
 	m_hasChanged = false;
 	const Field srcField = m_field;
-
+	// TODO тред пул через конструктор
+	// TODO можно убрать лишнее копирование через буфер
 	boost::asio::thread_pool threadPool(threads);
 
 	const auto start = std::chrono::high_resolution_clock::now();

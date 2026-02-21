@@ -21,7 +21,6 @@ unsigned long Unpacker::Unpack(
 	const std::string& outDir) const
 {
 	const auto start = std::chrono::high_resolution_clock::now();
-
 	if (m_processes == 0)
 	{
 		return 0;
@@ -34,7 +33,6 @@ unsigned long Unpacker::Unpack(
 		return 0;
 	}
 	const auto filesPerProcess = (gzFiles.size() + m_processes - 1) / m_processes;
-
 	const auto end = std::chrono::high_resolution_clock::now();
 
 	std::vector<pid_t> pids(m_processes);
