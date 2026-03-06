@@ -23,3 +23,5 @@ add_subdirectory(lw1/MakeArchive)
 add_subdirectory(lw1/ExtractArchive)
 
 add_subdirectory(lw2/Life)
+
+add_subdirectory(lw3/Bank)
