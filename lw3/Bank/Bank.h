@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <memory>
 #include <shared_mutex>
 #include <stdexcept>
 #include <unordered_map>
@@ -56,14 +57,14 @@ public:
 	// Снятые деньги добавляются к массе наличных денег
 	// При невалидном номере счёта или отсутствии денег, выбрасывается исключение BankOperationError
 	// При отрицательном количестве денег выбрасывается std::out_of_range
-	void WithdrawMoney(AccountId account, Money amount);
+	void WithdrawMoney(AccountId accountId, Money amount);
 
 	// Попытаться снять деньги в размере amount со счёта account.
 	// Объем денег в наличном обороте увеличивается на величину amount
 	// При нехватке денег на счёте возвращается false, а количество наличных денег остаётся неизменным
 	// При невалидном номере аккаунта выбрасывается BankOperationError.
 	// При отрицательном количестве денег выбрасывается std::out_of_range
-	[[nodiscard]] bool TryWithdrawMoney(AccountId account, Money amount);
+	[[nodiscard]] bool TryWithdrawMoney(AccountId accountId, Money amount);
 
 	// Поместить наличные деньги на счёт. Количество денег в наличном обороте
 	// уменьшается на величину amount.
@@ -72,7 +73,7 @@ public:
 	// Нельзя поместить деньги на отсутствующий счёт
 	// При невалидном номере аккаунта или нехватке наличных денег в обороте выбрасывается BankOperationError.
 	// При отрицательном количестве денег выбрасывается std::out_of_range
-	void DepositMoney(AccountId account, Money amount);
+	void DepositMoney(AccountId accountId, Money amount);
 
 	// Открывает счёт в банке. После открытия счёта на нём нулевой баланс.
 	// Каждый открытый счёт имеет уникальный номер.
@@ -88,9 +89,21 @@ private:
 	void AssertAccountExists(AccountId account) const;
 
 private:
-	using BankAccounts = std::unordered_map<AccountId, Money>;
+	struct Account
+	{
+		Money balance;
+		std::shared_mutex mutex;
+		explicit Account(const Money balance)
+			: balance(balance)
+		{
+		}
+	};
 
-	mutable std::shared_mutex m_mutex;
+	using BankAccounts = std::unordered_map<AccountId, std::unique_ptr<Account>>;
+
+	mutable std::shared_mutex m_accountsMutex;
+	mutable std::shared_mutex m_cashMutex;
+	mutable std::shared_mutex m_nextAccountMutex;
 	mutable std::atomic<unsigned long long> m_operationsCount = 0;
 	BankAccounts m_bankAccounts;
 	Money m_cash;

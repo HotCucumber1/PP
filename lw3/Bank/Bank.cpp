@@ -24,20 +24,41 @@ void Bank::SendMoney(
 	const Money amount)
 {
 	AssertAmountNotNegative(amount);
+	if (srcAccountId == dstAccountId)
+	{
+		m_operationsCount.fetch_add(1, std::memory_order_release);
+		return;
+	}
 
-	std::unique_lock lock(m_mutex);
+	Account* srcAccount = nullptr;
+	Account* dstAccount = nullptr;
 
-	AssertAccountExists(srcAccountId);
-	AssertAccountExists(dstAccountId);
+	{
+		std::shared_lock lock(m_accountsMutex);
+		const auto srcIt = m_bankAccounts.find(srcAccountId);
+		const auto dstIt = m_bankAccounts.find(dstAccountId);
 
-	const auto srcAccountMoney = m_bankAccounts.at(srcAccountId);
-	if (amount > srcAccountMoney)
+		if (srcIt == m_bankAccounts.end() || dstIt == m_bankAccounts.end())
+		{
+			throw BankOperationError("Account not found");
+		}
+
+		srcAccount = srcIt->second.get();
+		dstAccount = dstIt->second.get();
+	}
+
+	std::unique_lock srcLock(srcAccount->mutex, std::defer_lock);
+	std::unique_lock dstLock(dstAccount->mutex, std::defer_lock);
+	std::lock(srcLock, dstLock);
+
+	if (amount > srcAccount->balance)
 	{
 		throw std::out_of_range("Insufficient funds");
 	}
 
-	m_bankAccounts[srcAccountId] -= amount;
-	m_bankAccounts[dstAccountId] += amount;
+	srcAccount->balance -= amount;
+	dstAccount->balance += amount;
+
 	m_operationsCount.fetch_add(1, std::memory_order_release);
 }
 
@@ -47,27 +68,48 @@ bool Bank::TrySendMoney(
 	const Money amount)
 {
 	AssertAmountNotNegative(amount);
+	if (srcAccountId == dstAccountId)
+	{
+		m_operationsCount.fetch_add(1, std::memory_order_release);
+		return true;
+	}
 
-	std::unique_lock lock(m_mutex);
+	Account* srcAccount = nullptr;
+	Account* dstAccount = nullptr;
 
-	AssertAccountExists(srcAccountId);
-	AssertAccountExists(dstAccountId);
+	{
+		std::shared_lock lock(m_accountsMutex);
+		const auto srcIt = m_bankAccounts.find(srcAccountId);
+		const auto dstIt = m_bankAccounts.find(dstAccountId);
 
-	const auto srcAccountMoney = m_bankAccounts.at(srcAccountId);
-	if (amount > srcAccountMoney)
+		if (srcIt == m_bankAccounts.end() || dstIt == m_bankAccounts.end())
+		{
+			throw BankOperationError("Account not found");
+		}
+
+		srcAccount = srcIt->second.get();
+		dstAccount = dstIt->second.get();
+	}
+
+	std::unique_lock srcLock(srcAccount->mutex, std::defer_lock);
+	std::unique_lock dstLock(dstAccount->mutex, std::defer_lock);
+	std::lock(srcLock, dstLock);
+
+	if (amount > srcAccount->balance)
 	{
 		return false;
 	}
 
-	m_bankAccounts[srcAccountId] -= amount;
-	m_bankAccounts[dstAccountId] += amount;
+	srcAccount->balance -= amount;
+	dstAccount->balance += amount;
+
 	m_operationsCount.fetch_add(1, std::memory_order_release);
 	return true;
 }
 
 Money Bank::GetCash() const
 {
-	std::shared_lock lock(m_mutex);
+	std::shared_lock lock(m_cashMutex);
 
 	m_operationsCount.fetch_add(1, std::memory_order_release);
 	return m_cash;
@@ -75,88 +117,147 @@ Money Bank::GetCash() const
 
 Money Bank::GetAccountBalance(const AccountId accountId) const
 {
-	std::shared_lock lock(m_mutex);
+	Account* account = nullptr;
 
-	AssertAccountExists(accountId);
+	{
+		std::shared_lock lock(m_accountsMutex);
+		const auto it = m_bankAccounts.find(accountId);
+		if (it == m_bankAccounts.end())
+		{
+			throw BankOperationError("Account " + std::to_string(accountId) + " not found");
+		}
+		account = it->second.get();
+	}
+	std::shared_lock accountLock(account->mutex);
 	m_operationsCount.fetch_add(1, std::memory_order_release);
-	return m_bankAccounts.at(accountId);
+	return account->balance;
 }
 
-void Bank::WithdrawMoney(const AccountId account, const Money amount)
+void Bank::WithdrawMoney(const AccountId accountId, const Money amount)
 {
 	AssertAmountNotNegative(amount);
 
-	std::unique_lock lock(m_mutex);
+	Account* account = nullptr;
 
-	AssertAccountExists(account);
-	const auto accountMoney = m_bankAccounts.at(account);
+	{
+		std::shared_lock lock(m_accountsMutex);
+		const auto it = m_bankAccounts.find(accountId);
+		if (it == m_bankAccounts.end())
+		{
+			throw BankOperationError("Account " + std::to_string(accountId) + " not found");
+		}
+		account = it->second.get();
+	}
 
-	if (amount > accountMoney)
+	std::unique_lock cashLock(m_cashMutex);
+	std::unique_lock accountLock(account->mutex);
+	if (amount > account->balance)
 	{
 		throw BankOperationError("No money(");
 	}
-	m_bankAccounts[account] -= amount;
+
+	account->balance -= amount;
 	m_cash += amount;
 	m_operationsCount.fetch_add(1, std::memory_order_release);
 }
 
-bool Bank::TryWithdrawMoney(const AccountId account, const Money amount)
+bool Bank::TryWithdrawMoney(const AccountId accountId, const Money amount)
 {
 	AssertAmountNotNegative(amount);
 
-	std::unique_lock lock(m_mutex);
+	Account* account = nullptr;
 
-	AssertAccountExists(account);
-	const auto accountMoney = m_bankAccounts.at(account);
-	if (amount > accountMoney)
+	{
+		std::shared_lock lock(m_accountsMutex);
+		const auto it = m_bankAccounts.find(accountId);
+		if (it == m_bankAccounts.end())
+		{
+			throw BankOperationError("Account " + std::to_string(accountId) + " not found");
+		}
+		account = it->second.get();
+	}
+	std::unique_lock cashLock(m_cashMutex);
+	std::unique_lock accountLock(account->mutex);
+
+	if (amount > account->balance)
 	{
 		return false;
 	}
-	m_bankAccounts[account] -= amount;
+
+	account->balance -= amount;
 	m_cash += amount;
 	m_operationsCount.fetch_add(1, std::memory_order_release);
 	return true;
 }
 
-void Bank::DepositMoney(const AccountId account, const Money amount)
+void Bank::DepositMoney(const AccountId accountId, const Money amount)
 {
 	AssertAmountNotNegative(amount);
 
-	std::unique_lock lock(m_mutex);
-
-	AssertAccountExists(account);
+	Account* account = nullptr;
+	{
+		std::shared_lock lock(m_accountsMutex);
+		const auto it = m_bankAccounts.find(accountId);
+		if (it == m_bankAccounts.end())
+		{
+			throw BankOperationError("Account " + std::to_string(accountId) + " not found");
+		}
+		account = it->second.get();
+	}
+	std::unique_lock cashLock(m_cashMutex);
 	if (amount > m_cash)
 	{
 		throw BankOperationError("There is no so much cash");
 	}
+	std::unique_lock accountLock(account->mutex);
+
 	m_cash -= amount;
-	m_bankAccounts[account] += amount;
+	account->balance += amount;
 	m_operationsCount.fetch_add(1, std::memory_order_release);
 }
 
 AccountId Bank::OpenAccount()
 {
-	constexpr int defaultAmount = 0;
+	AccountId newAccountId;
+	{
+		std::unique_lock lock(m_nextAccountMutex);
+		newAccountId = m_nextAccount++;
+	}
 
-	std::unique_lock lock(m_mutex);
+	{
+		constexpr Money defaultAmount = 0;
+		auto newAccount = std::make_unique<Account>(defaultAmount);
+		std::unique_lock lock(m_accountsMutex);
+		m_bankAccounts[newAccountId] = std::move(newAccount);
+	}
 
-	const auto newAccount = m_nextAccount++;
-	m_bankAccounts[newAccount] = defaultAmount;
 	m_operationsCount.fetch_add(1, std::memory_order_release);
-	return newAccount;
+	return newAccountId;
 }
 
 Money Bank::CloseAccount(const AccountId accountId)
 {
-	std::unique_lock lock(m_mutex);
+	std::unique_ptr<Account> accountPtr;
 
-	AssertAccountExists(accountId);
+	{
+		std::unique_lock lock(m_accountsMutex);
+		const auto it = m_bankAccounts.find(accountId);
+		if (it == m_bankAccounts.end())
+		{
+			throw BankOperationError("Account " + std::to_string(accountId) + " not found");
+		}
+		accountPtr = std::move(it->second);
+		m_bankAccounts.erase(it);
+	}
 
-	const auto money = m_bankAccounts.at(accountId);
-	m_bankAccounts.erase(accountId);
-	m_cash += money;
+	const Money balance = accountPtr->balance;
+	{
+		std::unique_lock cashLock(m_cashMutex);
+		m_cash += balance;
+	}
+
 	m_operationsCount.fetch_add(1, std::memory_order_release);
-	return money;
+	return balance;
 }
 
 void Bank::AssertAccountExists(const AccountId account) const
