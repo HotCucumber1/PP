@@ -47,9 +47,8 @@ void Bank::SendMoney(
 		dstAccount = dstIt->second.get();
 	}
 
-	std::unique_lock srcLock(srcAccount->mutex, std::defer_lock);
-	std::unique_lock dstLock(dstAccount->mutex, std::defer_lock);
-	std::lock(srcLock, dstLock);
+	// TODO scoped_lock
+	std::scoped_lock lock(srcAccount->mutex, dstAccount->mutex);
 
 	if (amount > srcAccount->balance)
 	{
@@ -91,9 +90,7 @@ bool Bank::TrySendMoney(
 		dstAccount = dstIt->second.get();
 	}
 
-	std::unique_lock srcLock(srcAccount->mutex, std::defer_lock);
-	std::unique_lock dstLock(dstAccount->mutex, std::defer_lock);
-	std::lock(srcLock, dstLock);
+	std::scoped_lock lock(srcAccount->mutex, dstAccount->mutex);
 
 	if (amount > srcAccount->balance)
 	{

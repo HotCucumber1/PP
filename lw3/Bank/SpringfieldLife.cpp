@@ -73,9 +73,9 @@ void SpringfieldLife::RunSingleMode(const double simulationTime)
 
 void SpringfieldLife::RunMultiThreadMode(const double simulationTime)
 {
-	std::atomic timeIsUp{ false };
+	std::atomic timeIsUp = false;
 
-	std::jthread timerThread([&]() {
+	std::jthread timerThread([this, simulationTime, &timeIsUp]() {
 		std::this_thread::sleep_for(std::chrono::duration<double>(simulationTime));
 		timeIsUp = true;
 		if (m_needLog)

@@ -23,5 +23,9 @@ add_subdirectory(lw1/MakeArchive)
 add_subdirectory(lw1/ExtractArchive)
 
 add_subdirectory(lw2/Life)
+add_subdirectory(lw2/Gauss)
 
 add_subdirectory(lw3/Bank)
+add_subdirectory(lw3/Warehouse)
+
+add_subdirectory(lw4/MusicPlayer)

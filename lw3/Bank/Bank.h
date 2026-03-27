@@ -104,6 +104,7 @@ private:
 	mutable std::shared_mutex m_accountsMutex;
 	mutable std::shared_mutex m_cashMutex;
 	mutable std::shared_mutex m_nextAccountMutex;
+
 	mutable std::atomic<unsigned long long> m_operationsCount = 0;
 	BankAccounts m_bankAccounts;
 	Money m_cash;
