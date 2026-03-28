@@ -9,6 +9,10 @@ constexpr float SEC_IN_MIN = 60;
 constexpr float AMPLITUDE = 0.15;
 constexpr float START_FREQ = 440;
 constexpr float MIN_FREQ = 0.0001;
+
+constexpr float ATTACK_DURATION_SECONDS = 0.005;
+constexpr float RELEASE_DURATION_SECONDS = 0.1;
+
 constexpr int SEMITONES_PER_OCTAVE = 12;
 constexpr int TOTAL_SEMITONES = 57;
 constexpr int COMMON_OCTAVE = 4;
@@ -26,11 +30,11 @@ Synthesizer::Synthesizer(const ma_uint32 sampleRate, Score score)
 	if (!m_score.lines.empty())
 	{
 		m_isPlaying = true;
-		ProcessNextLine();
+		InsertNextLine();
 	}
 }
 
-void Synthesizer::ProcessNextLine()
+void Synthesizer::InsertNextLine()
 {
 	if (m_currentLineIndex >= m_score.lines.size())
 	{
@@ -47,33 +51,57 @@ void Synthesizer::ProcessNextLine()
 
 	for (size_t ch = 0; ch < MAX_CHANNELS; ++ch)
 	{
-		const auto channelData = channels[ch];
+		const auto [notes, globalFade] = channels[ch];
 
-		if (channelData.globalFade)
+		if (globalFade)
 		{
-			for (auto& pair : m_activeNotes[ch])
+			for (auto& note : m_activeNotes[ch] | std::views::values)
 			{
-				pair.second.isFading = true;
-				pair.second.fadeRate = pair.second.currentAmplitude / static_cast<float>(m_samplesPerLine);
+				if (note.isFading)
+				{
+					continue;
+				}
+				note.isFading = true;
+				note.targetAmplitude = 0;
+				note.amplitudeStep = -note.currentAmplitude / (RELEASE_DURATION_SECONDS * m_sampleRate);
+				note.isChanging = true;
 			}
 		}
+		InsertActiveNote(ch, notes);
+	}
+}
 
-		for (const auto& note : channelData.notes)
+void Synthesizer::InsertActiveNote(const size_t channel, const std::vector<Note>& notes)
+{
+	for (const auto& [name, fade, waveType] : notes)
+	{
+		const auto frequency = CalculateFrequency(name);
+		const auto amplitudeStep = AMPLITUDE / (ATTACK_DURATION_SECONDS * m_sampleRate);
+
+		auto it = m_activeNotes[channel].find(name);
+		std::string noteName = name;
+		if (it != m_activeNotes[channel].end())
 		{
-			const auto frequency = CalculateFrequency(note.name);
-
-			ActiveNote newNote{
-				audio::WaveGenerator(m_sampleRate, frequency, note.waveType, 1, 0),
-				0.1,
-				0,
-				note.fade
-			};
-			if (newNote.isFading)
+			auto& oldNote = it->second;
+			if (!oldNote.isFading)
 			{
-				newNote.fadeRate = newNote.currentAmplitude / static_cast<float>(m_samplesPerLine);
+				oldNote.isFading = true;
+				oldNote.targetAmplitude = 0;
+				oldNote.amplitudeStep = -oldNote.currentAmplitude / (RELEASE_DURATION_SECONDS * m_sampleRate);
+				oldNote.isChanging = true;
 			}
-			m_activeNotes[ch].insert_or_assign(note.name, newNote);
+			noteName = name + "_" + std::to_string(m_currentLineIndex);
 		}
+		ActiveNote newNote{
+			audio::WaveGenerator(m_sampleRate, frequency, waveType, 1, 0),
+			0,
+			AMPLITUDE,
+			amplitudeStep,
+			true,
+			fade
+		};
+
+		m_activeNotes[channel].insert_or_assign(noteName, newNote);
 	}
 }
 
@@ -95,7 +123,9 @@ void Synthesizer::ProcessAudio(float* output, const ma_uint32 frameCount)
 			{
 				for (auto it = m_activeNotes[ch].begin(); it != m_activeNotes[ch].end();)
 				{
-					if (it->second.isFading && it->second.currentAmplitude <= MIN_FREQ)
+					if (it->second.isFading
+						&& !it->second.isChanging
+						&& it->second.currentAmplitude <= MIN_FREQ)
 					{
 						it = m_activeNotes[ch].erase(it);
 						continue;
@@ -106,9 +136,12 @@ void Synthesizer::ProcessAudio(float* output, const ma_uint32 frameCount)
 
 			m_currentLineIndex++;
 			m_sampleCounter = 0;
-			ProcessNextLine();
+			InsertNextLine();
 		}
 
+		// TODO распараллеливание не по каналам, а по сэмплам
+		// TODO вынести функцию, чтобы ее забенчмаркать
+		// TODO еще и посчитать
 		const float mixedSample = std::transform_reduce(
 			std::execution::par_unseq,
 			channelsIndices.begin(),
@@ -120,16 +153,19 @@ void Synthesizer::ProcessAudio(float* output, const ma_uint32 frameCount)
 				for (auto& activeNote : m_activeNotes[ch] | std::views::values)
 				{
 					const float rawSample = activeNote.generator.GetNextSample();
-					chSample += rawSample * activeNote.currentAmplitude;
 
-					if (activeNote.isFading)
+					if (activeNote.isChanging)
 					{
-						activeNote.currentAmplitude -= activeNote.fadeRate;
-						if (activeNote.currentAmplitude < 0)
+						activeNote.currentAmplitude += activeNote.amplitudeStep;
+
+						if (activeNote.amplitudeStep > 0 && activeNote.currentAmplitude >= activeNote.targetAmplitude
+							|| activeNote.currentAmplitude <= 0 && activeNote.currentAmplitude <= activeNote.targetAmplitude)
 						{
-							activeNote.currentAmplitude = 0;
+							activeNote.currentAmplitude = activeNote.targetAmplitude;
+							activeNote.isChanging = false;
 						}
 					}
+					chSample += rawSample * activeNote.currentAmplitude;
 				}
 				return chSample;
 			});
@@ -187,8 +223,8 @@ float CalculateFrequency(const std::string& noteName)
 	size_t octaveIndex = 1;
 	if (noteName.size() > 1 && noteName[1] == '#')
 	{
-		noteOffset += 1;
-		octaveIndex = 2;
+		noteOffset++;
+		octaveIndex++;
 	}
 
 	int octave = COMMON_OCTAVE;

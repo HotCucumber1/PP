@@ -5,7 +5,6 @@
 #include <functional>
 #include <iostream>
 #include <numbers>
-#include <span>
 #include <string>
 
 namespace audio
@@ -131,7 +130,10 @@ public:
 	}
 
 private:
-	static ma_device_config CreateConfig(ma_format format, ma_uint32 channels, ma_uint32 sampleRate)
+	static ma_device_config CreateConfig(
+		const ma_format format,
+		const ma_uint32 channels,
+		const ma_uint32 sampleRate)
 	{
 		auto config = ma_device_config_init(ma_device_type_playback);
 		auto& playback = config.playback;

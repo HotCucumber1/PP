@@ -27,20 +27,20 @@ int main(int argc, char* argv[])
 		audio::Player player(ma_format_f32, 1);
 		Synthesizer synth(player.GetSampleRate(), score);
 
-		player.SetDataCallback([&synth](void* output, const ma_uint32 frameCount) {
-			synth.ProcessAudio(static_cast<float*>(output), frameCount);
-		});
+		// player.SetDataCallback([&synth](void* output, const ma_uint32 frameCount) {
+		// 	synth.ProcessAudio(static_cast<float*>(output), frameCount);
+		// });
 
 		// FIXME
-		// player.SetDataCallback([&synth](void* output, const ma_uint32 frameCount) {
-		// 	const auto outBuffer = static_cast<float*>(output);
-		// 	synth.ProcessAudio(outBuffer, frameCount);
-		//
-		// 	if (frameCount > 0)
-		// 	{
-		// 		Draw(outBuffer[0]);
-		// 	}
-		// });
+		player.SetDataCallback([&synth](void* output, const ma_uint32 frameCount) {
+			const auto outBuffer = static_cast<float*>(output);
+			synth.ProcessAudio(outBuffer, frameCount);
+
+			// if (frameCount > 0)
+			// {
+			// 	Draw(outBuffer[0]);
+			// }
+		});
 
 		player.Start();
 

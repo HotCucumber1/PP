@@ -12,15 +12,34 @@ public:
 	void ProcessAudio(float* output, ma_uint32 frameCount);
 
 private:
-	void ProcessNextLine();
+	void InsertNextLine();
+
+	void InsertActiveNote(size_t channel, const std::vector<Note>& notes);
 
 private:
 	struct ActiveNote
 	{
 		audio::WaveGenerator generator;
 		float currentAmplitude;
-		float fadeRate;
+		float targetAmplitude;
+		float amplitudeStep;
+		bool isChanging;
 		bool isFading;
+
+		ActiveNote(
+			audio::WaveGenerator&& gen,
+			const float startAmp,
+			const float targetAmp,
+			const float step,
+			const bool changing,
+			const bool fading)
+			: generator(gen)
+			, currentAmplitude(startAmp)
+			, targetAmplitude(targetAmp)
+			, amplitudeStep(step)
+			, isChanging(changing)
+			, isFading(fading)
+		{}
 	};
 
 	ma_uint32 m_sampleRate;
