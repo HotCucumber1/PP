@@ -19,6 +19,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cxxopts)
 include_directories(${cxxopts_SOURCE_DIR})
 
+find_package(TBB REQUIRED)
+
 add_subdirectory(lw1/MakeArchive)
 add_subdirectory(lw1/ExtractArchive)
 
@@ -29,3 +31,7 @@ add_subdirectory(lw3/Bank)
 add_subdirectory(lw3/Warehouse)
 
 add_subdirectory(lw4/MusicPlayer)
+
+add_subdirectory(lw5/TV)
+
+add_subdirectory(lw6/Atomics)
