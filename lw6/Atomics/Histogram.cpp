@@ -2,8 +2,8 @@
 #include "RowsProcessor.h"
 
 #include <algorithm>
-#include <numeric>
 #include <execution>
+#include <numeric>
 #include <thread>
 
 struct HistData
@@ -206,44 +206,54 @@ void LocalHistogram(const Image& image, int numThreads, std::vector<float>& hist
 
 void ParallelForEachHistogram(const Image& image, std::vector<float>& histR, std::vector<float>& histG, std::vector<float>& histB)
 {
+	using HistArray = std::array<unsigned int, Image::RGB_MAX + 1>;
+
 	const auto width = image.GetWidth();
 	const auto height = image.GetHeight();
 	const auto data = image.GetData();
 
-	std::vector<std::atomic<unsigned int>> atomicR(Image::RGB_MAX + 1);
-	std::vector<std::atomic<unsigned int>> atomicG(Image::RGB_MAX + 1);
-	std::vector<std::atomic<unsigned int>> atomicB(Image::RGB_MAX + 1);
-
-	for (int i = 0; i < Image::RGB_MAX + 1; ++i)
-	{
-		atomicR[i].store(0, std::memory_order_relaxed);
-		atomicG[i].store(0, std::memory_order_relaxed);
-		atomicB[i].store(0, std::memory_order_relaxed);
-	}
-
 	std::vector<int> rows(height);
 	std::iota(rows.begin(), rows.end(), 0);
 
-	std::for_each(std::execution::par, rows.begin(), rows.end(),
+	constexpr std::tuple<HistArray, HistArray, HistArray> init;
+
+	auto result = std::transform_reduce(
+		std::execution::par,
+		rows.begin(), rows.end(),
+		init,
+		[](const auto& acc1, const auto& acc2) {
+			auto [r1, g1, b1] = acc1;
+			auto [r2, g2, b2] = acc2;
+			HistArray rSum;
+			HistArray gSum;
+			HistArray bSum;
+			for (int i = 0; i < Image::RGB_MAX + 1; ++i)
+			{
+				rSum[i] = r1[i] + r2[i];
+				gSum[i] = g1[i] + g2[i];
+				bSum[i] = b1[i] + b2[i];
+			}
+			return std::make_tuple(rSum, gSum, bSum);
+		},
 		[&](const int y) {
-			const uint8_t* row = data + y * width * 3;
+			HistArray localR;
+			HistArray localG;
+			HistArray localB;
+			const auto row = data + y * width * 3;
 			for (int x = 0; x < width; ++x)
 			{
-				atomicR[row[x * 3]].fetch_add(1, std::memory_order_relaxed);
-				atomicG[row[x * 3 + 1]].fetch_add(1, std::memory_order_relaxed);
-				atomicB[row[x * 3 + 2]].fetch_add(1, std::memory_order_relaxed);
+				localR[row[x * 3]]++;
+				localG[row[x * 3 + 1]]++;
+				localB[row[x * 3 + 2]]++;
 			}
+			return std::make_tuple(localR, localG, localB);
 		});
 
-	std::vector<unsigned> countsR(Image::RGB_MAX + 1);
-	std::vector<unsigned> countsG(Image::RGB_MAX + 1);
-	std::vector<unsigned> countsB(Image::RGB_MAX + 1);
-	for (int i = 0; i < Image::RGB_MAX + 1; ++i)
-	{
-		countsR[i] = atomicR[i].load(std::memory_order_relaxed);
-		countsG[i] = atomicG[i].load(std::memory_order_relaxed);
-		countsB[i] = atomicB[i].load(std::memory_order_relaxed);
-	}
+	auto [totalR, totalG, totalB] = result;
+
+	const std::vector countsR(totalR.begin(), totalR.end());
+	const std::vector countsG(totalG.begin(), totalG.end());
+	const std::vector countsB(totalB.begin(), totalB.end());
 
 	NormalizeHistogram(countsR, histR);
 	NormalizeHistogram(countsG, histG);
