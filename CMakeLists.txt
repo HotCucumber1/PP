@@ -37,3 +37,6 @@ add_subdirectory(lw5/TV)
 add_subdirectory(lw6/Atomics)
 add_subdirectory(lw6/TicketOffice)
 add_subdirectory(lw6/StopToken)
+
+add_subdirectory(lw7/AtomicMax)
+add_subdirectory(lw7/ThreadPool_LF)
