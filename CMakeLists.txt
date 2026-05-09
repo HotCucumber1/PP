@@ -35,3 +35,4 @@ add_subdirectory(lw4/MusicPlayer)
 add_subdirectory(lw5/TV)
 
 add_subdirectory(lw6/Atomics)
+add_subdirectory(lw6/TicketOffice)

@@ -1,0 +1,8 @@
+add_executable(Test_TicketOffice TicketOffice.cpp test/TestTicketOffice.cpp)
+add_executable(Test_TicketOfficeWithLock TicketOfficeWithLock.cpp test/TestTicketOfficeWithLock.cpp)
+add_executable(Benchmark_TicketOffice TicketOffice.cpp TicketOfficeWithLock.cpp test/BenchmarkTicketOffice.cpp)
+
+target_link_libraries(Test_TicketOffice PRIVATE Catch2::Catch2WithMain)
+target_link_libraries(Test_TicketOfficeWithLock PRIVATE Catch2::Catch2WithMain)
+
+target_link_libraries(Benchmark_TicketOffice PRIVATE Catch2::Catch2WithMain)
