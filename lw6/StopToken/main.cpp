@@ -3,7 +3,7 @@
 #include <iostream>
 #include <thread>
 
-void worker(const StopToken& token, const int id)
+void Worker(const StopToken& token, const int id)
 {
 	while (!token.StopRequested())
 	{
@@ -13,15 +13,13 @@ void worker(const StopToken& token, const int id)
 	std::cout << "Worker " << id << " stopped.\n";
 }
 
-// TODO почитать перед сдачей
-
 int main()
 {
 	const StopSource source;
 	auto token = source.GetToken();
 
-	std::jthread t1(worker, token, 1);
-	std::jthread t2(worker, token, 2);
+	std::jthread t1(Worker, token, 1);
+	std::jthread t2(Worker, token, 2);
 
 	std::this_thread::sleep_for(std::chrono::seconds(1));
 	source.RequestStop();

@@ -14,7 +14,7 @@ public:
 
 	void RequestStop() const
 	{
-		m_state->store(true, std::memory_order_release); // TODO Почему именно он?
+		m_state->store(true, std::memory_order_release);
 	}
 
 	StopToken GetToken() const;
@@ -43,7 +43,7 @@ public:
 private:
 	friend class StopSource;
 
-	explicit StopToken(std::shared_ptr<std::atomic<bool>> state) // TODO Почему именно он?
+	explicit StopToken(std::shared_ptr<std::atomic<bool>> state)
 		: m_state(std::move(state))
 	{
 	}

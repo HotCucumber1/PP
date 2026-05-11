@@ -206,7 +206,7 @@ void LocalHistogram(const Image& image, int numThreads, std::vector<float>& hist
 
 void ParallelForEachHistogram(const Image& image, std::vector<float>& histR, std::vector<float>& histG, std::vector<float>& histB)
 {
-	using HistArray = std::array<unsigned int, Image::RGB_MAX + 1>;
+	using HistArray = std::array<unsigned int, Image::RGB_MAX + 1>; // TODO проверить, что инициализируется 0
 
 	const auto width = image.GetWidth();
 	const auto height = image.GetHeight();

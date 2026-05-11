@@ -15,7 +15,7 @@ int TicketOffice::SellTickets(const int ticketsToBuy)
 {
 	if (ticketsToBuy <= 0)
 	{
-		throw std::invalid_argument("Can not buy negative amount of tickets");
+		throw std::invalid_argument("Can not buy negative or zero amount of tickets");
 	}
 
 	int available = m_numTickets.load(std::memory_order_relaxed);

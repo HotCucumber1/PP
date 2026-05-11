@@ -18,7 +18,7 @@ LFThreadPool::~LFThreadPool()
 
 	for (int i = 0; i < m_threads.size(); ++i)
 	{
-		m_workersQueue.push(nullptr); // TODO точно ли?
+		m_workersQueue.push(nullptr);
 	}
 
 	for (auto& t : m_threads)
@@ -33,18 +33,14 @@ bool LFThreadPool::Submit(std::function<void()> task)
 	{
 		return false;
 	}
-	auto deleter = [](const std::function<void()>* f) {
-		(*f)();
-		delete f;
-	}; // TODO че это
-	auto ptr = std::unique_ptr<
-		std::function<void()>,
-		decltype(deleter)>(
-		new std::function(std::move(task)),
-		deleter);
 
-	while (!m_workersQueue.push(ptr.release()))
+	auto taskPtr = std::make_unique<std::function<void()>>(std::move(task));
+	while (!m_workersQueue.push(taskPtr.release()))
 	{
+		if (m_stopFlag.load(std::memory_order_relaxed))
+		{
+			return false;
+		}
 		std::this_thread::yield();
 	}
 	return true;
@@ -67,10 +63,6 @@ void LFThreadPool::WorkerThread()
 		else
 		{
 			std::this_thread::yield();
-			if (m_stopFlag.load(std::memory_order_acquire))
-			{
-				break;
-			}
 		}
 	}
 }
