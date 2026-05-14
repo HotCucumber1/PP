@@ -37,7 +37,6 @@ bool LFThreadPool::Submit(std::function<void()> task)
 	}
 
 	auto taskPtr = std::make_unique<std::function<void()>>(std::move(task));
-	// TODO если push упадет с исключением, то утечка, если с первого раза не поместили в очередь, то поместит уже nullptr (т.к. владение передали)
 	while (!m_workersQueue.bounded_push(taskPtr.get()))
 	{
 		if (m_stopFlag.load(std::memory_order_relaxed))
