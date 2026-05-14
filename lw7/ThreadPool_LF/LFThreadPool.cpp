@@ -1,5 +1,7 @@
 #include "LFThreadPool.h"
 
+#include <iostream>
+
 constexpr int QUEUE_SiZE = 1024;
 
 LFThreadPool::LFThreadPool(const int numThreads)
@@ -18,7 +20,7 @@ LFThreadPool::~LFThreadPool()
 
 	for (int i = 0; i < m_threads.size(); ++i)
 	{
-		m_workersQueue.push(nullptr);
+		m_workersQueue.bounded_push(nullptr);
 	}
 
 	for (auto& t : m_threads)
@@ -35,14 +37,17 @@ bool LFThreadPool::Submit(std::function<void()> task)
 	}
 
 	auto taskPtr = std::make_unique<std::function<void()>>(std::move(task));
-	while (!m_workersQueue.push(taskPtr.release()))
+	// TODO если push упадет с исключением, то утечка, если с первого раза не поместили в очередь, то поместит уже nullptr (т.к. владение передали)
+	while (!m_workersQueue.bounded_push(taskPtr.get()))
 	{
 		if (m_stopFlag.load(std::memory_order_relaxed))
 		{
+			taskPtr.release();
 			return false;
 		}
 		std::this_thread::yield();
 	}
+	taskPtr.release();
 	return true;
 }
 
@@ -57,8 +62,15 @@ void LFThreadPool::WorkerThread()
 			{
 				break;
 			}
-			(*task)();
-			delete task;
+			std::unique_ptr<std::function<void()>> safeTask(task);
+			try
+			{
+				(*safeTask)();
+			}
+			catch (const std::exception& e)
+			{
+				std::cout << e.what() << std::endl;
+			}
 		}
 		else
 		{

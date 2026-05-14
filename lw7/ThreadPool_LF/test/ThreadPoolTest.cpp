@@ -214,3 +214,73 @@ TEST_CASE("LFThreadPool handles zero threads gracefully", "[LFThreadPool]")
 	std::this_thread::sleep_for(100ms);
 	REQUIRE(executed == false);
 }
+
+TEST_CASE("LFThreadPool worker survives exception and continues", "[LFThreadPool]")
+{
+	LFThreadPool pool(2);
+	std::atomic executedCount = 0;
+
+	pool.Submit([&]() {
+		++executedCount;
+		throw std::runtime_error("Test exception [LFThreadPool worker survives exception and continues]");
+	});
+
+	pool.Submit([&]() {
+		++executedCount;
+	});
+
+	std::this_thread::sleep_for(200ms);
+	REQUIRE(executedCount == 2);
+}
+
+TEST_CASE("LFThreadPool handles multiple exceptions without losing normal tasks", "[LFThreadPool]")
+{
+	LFThreadPool pool(4);
+	std::atomic normalCount = 0;
+	constexpr int TASKS_COUNT = 50;
+	constexpr int EXCEPTION_COUNT = 10;
+
+	for (int i = 0; i < TASKS_COUNT; ++i)
+	{
+		if (i < EXCEPTION_COUNT)
+		{
+			pool.Submit([&]() {
+				throw std::runtime_error("Error [LFThreadPool handles multiple exceptions without losing normal tasks]");
+			});
+		}
+		else
+		{
+			pool.Submit([&]() {
+				++normalCount;
+			});
+		}
+	}
+
+	std::this_thread::sleep_for(500ms);
+	REQUIRE(normalCount == TASKS_COUNT - EXCEPTION_COUNT);
+}
+
+
+TEST_CASE("LFThreadPool exception does not block other workers", "[LFThreadPool]")
+{
+	LFThreadPool pool(4);
+	std::atomic completed = 0;
+	std::atomic exceptionTaskRan = false;
+
+	pool.Submit([&]() {
+		exceptionTaskRan = true;
+		throw std::runtime_error("Block test [LFThreadPool handles multiple exceptions without losing normal tasks]");
+	});
+
+	for (int i = 0; i < 10; ++i)
+	{
+		pool.Submit([&]() {
+			std::this_thread::sleep_for(10ms);
+			++completed;
+		});
+	}
+
+	std::this_thread::sleep_for(500ms);
+	REQUIRE(exceptionTaskRan == true);
+	REQUIRE(completed == 10);
+}

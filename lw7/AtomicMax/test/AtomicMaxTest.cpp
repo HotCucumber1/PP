@@ -68,7 +68,7 @@ TEST_CASE("AtomicMax multi-threaded correctness", "[AtomicMax]")
 	std::vector<std::thread> threads;
 
 	std::atomic ready{ false };
-	std::atomic startCount{ 0 }; // TODO для чего это
+	std::atomic startCount{ 0 };
 
 	for (int t = 0; t < numThreads; ++t)
 	{

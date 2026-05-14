@@ -73,7 +73,7 @@ int main()
 
 	for (int numThreads = 1; numThreads <= 30; ++numThreads)
 	{
-		double time = BenchmarkLFThreadPool(numThreads);
+		const double time = BenchmarkLFThreadPool(numThreads);
 		std::cout << numThreads << "," << time << std::endl;
 	}
 
@@ -81,7 +81,7 @@ int main()
 	std::cout << "Threads,Time" << std::endl;
 	for (int numThreads = 1; numThreads <= 30; ++numThreads)
 	{
-		double time = BenchmarkAsioThreadPool(numThreads);
+		const double time = BenchmarkAsioThreadPool(numThreads);
 		std::cout << numThreads << "," << time << std::endl;
 	}
 
