@@ -5,6 +5,7 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <boost/lockfree/stack.hpp>
 
 constexpr int TASKS_COUNT = 1000;
 

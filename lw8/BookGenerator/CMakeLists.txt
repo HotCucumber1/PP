@@ -1,0 +1,1 @@
+add_executable(BookGenerator main.cpp)
